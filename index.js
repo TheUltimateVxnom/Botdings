@@ -19,6 +19,9 @@ const client = new Client({
   ],
 });
 
+// Letzter bekannter Status
+let previousStatus = null;
+
 // Funktion, um den aktuellen Bot-Status zu erhalten
 function getBotStatus() {
   if (client.presence?.status === 'online') {
@@ -35,6 +38,15 @@ function getBotStatus() {
 // Funktion, um den Status auf GitHub zu aktualisieren
 async function updateGitHubStatus(status) {
   try {
+    // Prüfen, ob der Status sich geändert hat
+    if (status === previousStatus) {
+      console.log('Status unverändert. Kein Update nötig.');
+      return;
+    }
+
+    console.log(`Status hat sich geändert: ${previousStatus} -> ${status}`);
+    previousStatus = status;
+
     const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
 
     // Bestehende Datei auf GitHub abrufen
@@ -63,9 +75,9 @@ async function updateGitHubStatus(status) {
       }
     );
 
-    console.log('Bot status successfully updated to GitHub!');
+    console.log('Bot-Status erfolgreich auf GitHub aktualisiert!');
   } catch (error) {
-    console.error('Error updating GitHub status:', error.message);
+    console.error('Fehler beim Aktualisieren des GitHub-Status:', error.message);
   }
 }
 
@@ -81,7 +93,7 @@ client.once('ready', () => {
   setInterval(() => {
     const currentStatus = getBotStatus();
     updateGitHubStatus(currentStatus);
-  }, 30000); // alle 5 Minuten
+  }, 300000); // alle 5 Minuten
 });
 
 // Login des Discord-Bots
@@ -93,3 +105,12 @@ client
   .catch((error) => {
     console.error('Fehler beim Einloggen des Discord-Bots:', error.message);
   });
+
+// Fehlerbehandlung
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err.message);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection:', reason);
+});
