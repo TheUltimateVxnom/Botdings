@@ -1,7 +1,7 @@
 {
  "dependencies": {
   "express": "^4.17.1",
-  "discord.js": "^14.0.0",  // Beispiel, je nach Version
+  "discord.js": "^14.0.0",  
   "axios": "^1.0.0"
   },
   "scripts": {
