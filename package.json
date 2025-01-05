@@ -1,5 +1,5 @@
 {
-  "name": "discord-bot-status-monitor",
+  "name": "Botdings",
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
