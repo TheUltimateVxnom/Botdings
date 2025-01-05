@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, MessageActionRow, MessageButton } = require('discord.js');
 const axios = require('axios');
 const express = require('express');
 
@@ -35,7 +35,6 @@ let previousStatus = null;
 
 // Funktion, um den aktuellen Bot-Status zu erhalten
 function getBotStatus() {
-  // Alle Präsenzstatus (online, dnd, idle) als "online" behandeln
   if (client.presence?.status === 'online' || client.presence?.status === 'dnd' || client.presence?.status === 'idle') {
     return 'online';
   } else {
@@ -52,7 +51,6 @@ app.get('/status', (req, res) => {
 // Funktion, um den Status auf GitHub zu aktualisieren
 async function updateGitHubStatus(status) {
   try {
-    // Prüfen, ob der Status sich geändert hat
     if (status === previousStatus) {
       console.log('Status unverändert. Kein Update nötig.');
       return;
@@ -63,7 +61,6 @@ async function updateGitHubStatus(status) {
 
     const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
 
-    // Bestehende Datei auf GitHub abrufen
     const response = await axios.get(url, {
       headers: {
         Authorization: `Bearer ${githubToken}`,
@@ -72,10 +69,8 @@ async function updateGitHubStatus(status) {
 
     const sha = response.data.sha;
 
-    // Status-Update erstellen
     const data = JSON.stringify({ status });
 
-    // Datei auf GitHub aktualisieren
     await axios.put(
       url,
       {
@@ -97,20 +92,51 @@ async function updateGitHubStatus(status) {
 }
 
 // Bot-Event: Wenn der Bot bereit ist
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log(`Bot ist online und eingeloggt als ${client.user.tag}`);
 
   // Sicherstellen, dass der Bot vollständig bereit ist, bevor der Status geprüft wird
   setTimeout(() => {
     const initialStatus = getBotStatus();
     updateGitHubStatus(initialStatus);
-  }, 1000); // kurze Verzögerung einbauen, falls nötig
+  }, 1000);
 
   // Status regelmäßig prüfen und auf GitHub aktualisieren
   setInterval(() => {
     const currentStatus = getBotStatus();
     updateGitHubStatus(currentStatus);
   }, 300000); // alle 5 Minuten
+
+  // Channel für den Button finden und Nachricht senden
+  const channel = await client.channels.fetch('1325576429672595600'); // Ersetze 'DEIN_CHANNEL_ID' mit der ID des Channels, in dem der Button erscheinen soll
+  const row = new MessageActionRow().addComponents(
+    new MessageButton()
+      .setCustomId('go_offline')
+      .setLabel('Bot Offline schalten')
+      .setStyle('DANGER')
+  );
+
+  // Sende eine Nachricht mit dem Button
+  await channel.send({
+    content: 'Klicke den Button, um den Bot offline zu schalten.',
+    components: [row],
+  });
+});
+
+// Event für Button-Click
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isButton()) return;
+
+  if (interaction.customId === 'go_offline') {
+    // Setze den Bot offline
+    await interaction.reply({ content: 'Der Bot wird jetzt offline geschaltet...', ephemeral: true });
+
+    // Setze die Präsenz auf offline
+    await client.user.setPresence({ status: 'invisible' });
+
+    // Aktualisiere GitHub mit dem Offline-Status
+    await updateGitHubStatus('offline');
+  }
 });
 
 // Login des Discord-Bots
