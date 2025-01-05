@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
+const express = require('express');
 
 // Discord Bot Token aus Umgebungsvariablen lesen
 const discordToken = process.env.DISCORD_TOKEN;
@@ -25,6 +26,10 @@ const client = new Client({
   ],
 });
 
+// Express-Server für Uptime Robot
+const app = express();
+const port = process.env.PORT || 3000; // Render verwendet oft dynamische Ports
+
 // Letzter bekannter Status
 let previousStatus = null;
 
@@ -37,6 +42,12 @@ function getBotStatus() {
     return 'offline';
   }
 }
+
+// API-Endpoint für Uptime Robot oder BetterStack
+app.get('/status', (req, res) => {
+  const status = getBotStatus();
+  res.json({ status: status });
+});
 
 // Funktion, um den Status auf GitHub zu aktualisieren
 async function updateGitHubStatus(status) {
@@ -119,4 +130,9 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection:', reason);
+});
+
+// Starte den Express-Server
+app.listen(port, () => {
+  console.log(`Server läuft auf Port ${port}`);
 });
