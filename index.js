@@ -81,7 +81,7 @@ client.once('ready', () => {
   setInterval(() => {
     const currentStatus = getBotStatus();
     updateGitHubStatus(currentStatus);
-  }, 300000); // alle 5 Minuten
+  }, 30000); // alle 5 Minuten
 });
 
 // Login des Discord-Bots
