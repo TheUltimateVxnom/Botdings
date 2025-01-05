@@ -4,7 +4,7 @@ const fs = require('fs');
 const git = require('simple-git')();
 
 // Discord Bot Token
-const discordToken = 'MTMyNTE2OTI1NTMyMjIyNjc2MA.GOIDXi.B6wzPffC6wpOW1m24lHlcEu59ICLG6XsnEzSBQ';
+const discordToken = process.env.DISCORD_TOKEN;
 
 // GitHub API Details
 const repoOwner = 'TheUltimateVxnom';
