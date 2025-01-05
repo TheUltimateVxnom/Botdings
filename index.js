@@ -3,12 +3,18 @@ const axios = require('axios');
 
 // Discord Bot Token aus Umgebungsvariablen lesen
 const discordToken = process.env.DISCORD_TOKEN;
+const githubToken = process.env.GITHUB_TOKEN; // GitHub Token aus Umgebungsvariablen
 
 // GitHub API Details
 const repoOwner = 'TheUltimateVxnom';
 const repoName = 'Botdings';
 const filePath = 'botStatus.json';
-const githubToken = process.env.GITHUB_TOKEN; // GitHub Token aus Umgebungsvariablen
+
+// Überprüfen, ob die notwendigen Umgebungsvariablen gesetzt sind
+if (!discordToken || !githubToken) {
+  console.error('Fehlende Umgebungsvariablen: DISCORD_TOKEN oder GITHUB_TOKEN');
+  process.exit(1); // Stoppe den Bot, wenn die Umgebungsvariablen fehlen
+}
 
 // Discord Bot Client initialisieren
 const client = new Client({
@@ -24,12 +30,9 @@ let previousStatus = null;
 
 // Funktion, um den aktuellen Bot-Status zu erhalten
 function getBotStatus() {
-  if (client.presence?.status === 'online') {
+  // Alle Präsenzstatus (online, dnd, idle) als "online" behandeln
+  if (client.presence?.status === 'online' || client.presence?.status === 'dnd' || client.presence?.status === 'idle') {
     return 'online';
-  } else if (client.presence?.status === 'dnd') {
-    return 'do not disturb';
-  } else if (client.presence?.status === 'idle') {
-    return 'away';
   } else {
     return 'offline';
   }
@@ -55,12 +58,13 @@ async function updateGitHubStatus(status) {
         Authorization: `Bearer ${githubToken}`,
       },
     });
+
     const sha = response.data.sha;
 
     // Status-Update erstellen
     const data = JSON.stringify({ status });
 
-    // Datei aktualisieren
+    // Datei auf GitHub aktualisieren
     await axios.put(
       url,
       {
@@ -77,7 +81,7 @@ async function updateGitHubStatus(status) {
 
     console.log('Bot-Status erfolgreich auf GitHub aktualisiert!');
   } catch (error) {
-    console.error('Fehler beim Aktualisieren des GitHub-Status:', error.message);
+    console.error('Fehler beim Aktualisieren des GitHub-Status:', error.response ? error.response.data : error.message);
   }
 }
 
@@ -85,11 +89,13 @@ async function updateGitHubStatus(status) {
 client.once('ready', () => {
   console.log(`Bot ist online und eingeloggt als ${client.user.tag}`);
 
-  // Direkt den Status aktualisieren
-  const initialStatus = getBotStatus();
-  updateGitHubStatus(initialStatus);
+  // Sicherstellen, dass der Bot vollständig bereit ist, bevor der Status geprüft wird
+  setTimeout(() => {
+    const initialStatus = getBotStatus();
+    updateGitHubStatus(initialStatus);
+  }, 1000); // kurze Verzögerung einbauen, falls nötig
 
-  // Status regelmäßig prüfen und auf GitHub aktualisieren (z.B. alle 5 Minuten)
+  // Status regelmäßig prüfen und auf GitHub aktualisieren
   setInterval(() => {
     const currentStatus = getBotStatus();
     updateGitHubStatus(currentStatus);
