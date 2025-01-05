@@ -1,0 +1,13 @@
+{
+  "name": "discord-bot-status-monitor",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "discord.js": "^14.0.0",
+    "axios": "^1.0.0",
+    "simple-git": "^3.0.0"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
