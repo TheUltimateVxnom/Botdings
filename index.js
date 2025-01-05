@@ -1,11 +1,8 @@
-npm install express
-
-
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
 const express = require('express');
 
-// Discord Bot Token aus Umgebungsvariablen lesen
+// Discord Bot Token und GitHub Token aus Umgebungsvariablen lesen
 const discordToken = process.env.DISCORD_TOKEN;
 const githubToken = process.env.GITHUB_TOKEN; // GitHub Token aus Umgebungsvariablen
 
