@@ -1,56 +1,44 @@
-const { Client, GatewayIntentBits, MessageActionRow, MessageButton } = require('discord.js');
+const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
-const express = require('express');
 
-// Discord Bot Token und GitHub Token aus Umgebungsvariablen lesen
-const discordToken = process.env.DISCORD_TOKEN;
-const githubToken = process.env.GITHUB_TOKEN; // GitHub Token aus Umgebungsvariablen
+// Discord-Bot-Token für den Wächter-Bot
+const discordToken = process.env.DISCORD_TOKEN; // Wächter-Bot Token
+const targetBotId = 'ZIEL_BOT_ID'; // Ersetze ZIEL_BOT_ID durch die ID des zu überwachenden Bots
 
 // GitHub API Details
 const repoOwner = 'TheUltimateVxnom';
 const repoName = 'Botdings';
 const filePath = 'botStatus.json';
+const githubToken = process.env.GITHUB_TOKEN; // GitHub Token aus Umgebungsvariablen
 
-// Überprüfen, ob die notwendigen Umgebungsvariablen gesetzt sind
-if (!discordToken || !githubToken) {
-  console.error('Fehlende Umgebungsvariablen: DISCORD_TOKEN oder GITHUB_TOKEN');
-  process.exit(1); // Stoppe den Bot, wenn die Umgebungsvariablen fehlen
-}
-
-// Discord Bot Client initialisieren
+// Wächter-Bot initialisieren
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildPresences],
 });
-
-// Express-Server für Uptime Robot
-const app = express();
-const port = process.env.PORT || 3000; // Render verwendet oft dynamische Ports
 
 // Letzter bekannter Status
 let previousStatus = null;
 
-// Funktion, um den aktuellen Bot-Status zu erhalten
-function getBotStatus() {
-  if (client.presence?.status === 'online' || client.presence?.status === 'dnd' || client.presence?.status === 'idle') {
-    return 'online';
+// Funktion, um den Status des Ziel-Bots zu überprüfen
+function getTargetBotStatus() {
+  const targetPresence = client.guilds.cache
+    .map((guild) => guild.presences.cache.get(targetBotId))
+    .find((presence) => presence);
+
+  if (!targetPresence) return 'offline';
+
+  const status = targetPresence.status;
+  if (status === 'online' || status === 'dnd' || status === 'idle') {
+    return 'up';
   } else {
     return 'offline';
   }
 }
 
-// API-Endpoint für Uptime Robot oder BetterStack
-app.get('/status', (req, res) => {
-  const status = getBotStatus();
-  res.json({ status: status });
-});
-
 // Funktion, um den Status auf GitHub zu aktualisieren
 async function updateGitHubStatus(status) {
   try {
+    // Prüfen, ob der Status sich geändert hat
     if (status === previousStatus) {
       console.log('Status unverändert. Kein Update nötig.');
       return;
@@ -61,16 +49,18 @@ async function updateGitHubStatus(status) {
 
     const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
 
+    // Bestehende Datei auf GitHub abrufen
     const response = await axios.get(url, {
       headers: {
         Authorization: `Bearer ${githubToken}`,
       },
     });
-
     const sha = response.data.sha;
 
+    // Status-Update erstellen
     const data = JSON.stringify({ status });
 
+    // Datei aktualisieren
     await axios.put(
       url,
       {
@@ -87,66 +77,33 @@ async function updateGitHubStatus(status) {
 
     console.log('Bot-Status erfolgreich auf GitHub aktualisiert!');
   } catch (error) {
-    console.error('Fehler beim Aktualisieren des GitHub-Status:', error.response ? error.response.data : error.message);
+    console.error('Fehler beim Aktualisieren des GitHub-Status:', error.message);
   }
 }
 
-// Bot-Event: Wenn der Bot bereit ist
-client.once('ready', async () => {
-  console.log(`Bot ist online und eingeloggt als ${client.user.tag}`);
+// Bot-Event: Wenn der Wächter-Bot bereit ist
+client.once('ready', () => {
+  console.log(`Wächter-Bot ist online und eingeloggt als ${client.user.tag}`);
 
-  // Sicherstellen, dass der Bot vollständig bereit ist, bevor der Status geprüft wird
-  setTimeout(() => {
-    const initialStatus = getBotStatus();
-    updateGitHubStatus(initialStatus);
-  }, 1000);
+  // Direkt den Status des Ziel-Bots überprüfen und aktualisieren
+  const initialStatus = getTargetBotStatus();
+  updateGitHubStatus(initialStatus);
 
-  // Status regelmäßig prüfen und auf GitHub aktualisieren
+  // Status des Ziel-Bots regelmäßig überprüfen (z.B. alle 30 Sekunden)
   setInterval(() => {
-    const currentStatus = getBotStatus();
+    const currentStatus = getTargetBotStatus();
     updateGitHubStatus(currentStatus);
-  }, 300000); // alle 5 Minuten
-
-  // Channel für den Button finden und Nachricht senden
-  const channel = await client.channels.fetch('1325576429672595600'); // Ersetze 'DEIN_CHANNEL_ID' mit der ID des Channels, in dem der Button erscheinen soll
-  const row = new MessageActionRow().addComponents(
-    new MessageButton()
-      .setCustomId('go_offline')
-      .setLabel('Bot Offline schalten')
-      .setStyle('DANGER')
-  );
-
-  // Sende eine Nachricht mit dem Button
-  await channel.send({
-    content: 'Klicke den Button, um den Bot offline zu schalten.',
-    components: [row],
-  });
+  }, 30000); // alle 30 Sekunden
 });
 
-// Event für Button-Click
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isButton()) return;
-
-  if (interaction.customId === 'go_offline') {
-    // Setze den Bot offline
-    await interaction.reply({ content: 'Der Bot wird jetzt offline geschaltet...', ephemeral: true });
-
-    // Setze die Präsenz auf offline
-    await client.user.setPresence({ status: 'invisible' });
-
-    // Aktualisiere GitHub mit dem Offline-Status
-    await updateGitHubStatus('offline');
-  }
-});
-
-// Login des Discord-Bots
+// Login des Wächter-Bots
 client
   .login(discordToken)
   .then(() => {
-    console.log('Discord-Bot erfolgreich eingeloggt!');
+    console.log('Wächter-Bot erfolgreich eingeloggt!');
   })
   .catch((error) => {
-    console.error('Fehler beim Einloggen des Discord-Bots:', error.message);
+    console.error('Fehler beim Einloggen des Wächter-Bots:', error.message);
   });
 
 // Fehlerbehandlung
@@ -156,9 +113,4 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection:', reason);
-});
-
-// Starte den Express-Server
-app.listen(port, () => {
-  console.log(`Server läuft auf Port ${port}`);
 });
