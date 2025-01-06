@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
+const express = require('express'); // Express-Server hinzufügen
 
 // Discord-Bot-Token für den Wächter-Bot
 const discordToken = process.env.DISCORD_TOKEN; // Wächter-Bot Token
@@ -113,4 +114,18 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection:', reason);
+});
+
+// Express-Server für Uptime-Monitoring
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Uptime-Monitoring-Endpunkt
+app.get('/', (req, res) => {
+  res.status(200).send('Wächter-Bot läuft und überwacht!');
+});
+
+// Webserver starten
+app.listen(PORT, () => {
+  console.log(`Webserver läuft auf Port ${PORT}`);
 });
