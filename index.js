@@ -3,7 +3,7 @@ const axios = require('axios');
 
 // Discord-Bot-Token für den Wächter-Bot
 const discordToken = process.env.DISCORD_TOKEN; // Wächter-Bot Token
-const targetBotId = 'ZIEL_BOT_ID'; // Ersetze ZIEL_BOT_ID durch die ID des zu überwachenden Bots
+const targetBotId = '1325169255322226760'; // Ersetze ZIEL_BOT_ID durch die ID des zu überwachenden Bots
 
 // GitHub API Details
 const repoOwner = 'TheUltimateVxnom';
