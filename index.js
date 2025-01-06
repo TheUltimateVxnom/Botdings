@@ -1,10 +1,9 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
-const express = require('express');
 
-// Discord-Bot-Token für den Wächter-Bot
+// Discord-Bot-Token und Ziel-Bot-ID aus Umgebungsvariablen
 const discordToken = process.env.DISCORD_TOKEN; // Wächter-Bot Token
-const targetBotId = '1325169255322226760'; // Ersetze ZIEL_BOT_ID durch die ID des zu überwachenden Bots
+const targetBotId = process.env.TARGET_BOT_ID; // Ziel-Bot-ID aus Umgebungsvariablen
 
 // GitHub API Details
 const repoOwner = 'TheUltimateVxnom';
@@ -21,31 +20,25 @@ const client = new Client({
 let previousStatus = null;
 
 // Funktion, um den Status des Ziel-Bots zu überprüfen
-async function getTargetBotStatus() {
-  let status = 'offline'; // Standardstatus
-  try {
-    // Über alle Gilden iterieren
-    for (const [guildId, guild] of client.guilds.cache) {
-      const presence = guild.presences.cache.get(targetBotId);
-      if (presence) {
-        console.log(`Präsenz gefunden in Gilde ${guild.name}: ${presence.status}`);
-        if (['online', 'dnd', 'idle'].includes(presence.status)) {
-          status = 'up'; // Bot ist online
-          break; // Keine weitere Suche erforderlich
-        }
-      } else {
-        console.log(`Keine Präsenz gefunden in Gilde ${guild.name} für Bot-ID ${targetBotId}`);
-      }
-    }
-  } catch (error) {
-    console.error('Fehler bei der Überprüfung des Ziel-Bots:', error.message);
+function getTargetBotStatus() {
+  const targetPresence = client.guilds.cache
+    .map((guild) => guild.presences.cache.get(targetBotId))
+    .find((presence) => presence);
+
+  if (!targetPresence) return 'offline';
+
+  const status = targetPresence.status;
+  if (status === 'online' || status === 'dnd' || status === 'idle') {
+    return 'up';
+  } else {
+    return 'offline';
   }
-  return status;
 }
 
 // Funktion, um den Status auf GitHub zu aktualisieren
 async function updateGitHubStatus(status) {
   try {
+    // Prüfen, ob der Status sich geändert hat
     if (status === previousStatus) {
       console.log('Status unverändert. Kein Update nötig.');
       return;
@@ -56,6 +49,7 @@ async function updateGitHubStatus(status) {
 
     const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
 
+    // Bestehende Datei auf GitHub abrufen
     const response = await axios.get(url, {
       headers: {
         Authorization: `Bearer ${githubToken}`,
@@ -63,8 +57,10 @@ async function updateGitHubStatus(status) {
     });
     const sha = response.data.sha;
 
+    // Status-Update erstellen
     const data = JSON.stringify({ status });
 
+    // Datei aktualisieren
     await axios.put(
       url,
       {
@@ -86,18 +82,17 @@ async function updateGitHubStatus(status) {
 }
 
 // Bot-Event: Wenn der Wächter-Bot bereit ist
-client.once('ready', async () => {
+client.once('ready', () => {
   console.log(`Wächter-Bot ist online und eingeloggt als ${client.user.tag}`);
-  console.log(`Überwache Ziel-Bot mit der ID: ${targetBotId}`);
 
   // Direkt den Status des Ziel-Bots überprüfen und aktualisieren
-  const initialStatus = await getTargetBotStatus();
-  await updateGitHubStatus(initialStatus);
+  const initialStatus = getTargetBotStatus();
+  updateGitHubStatus(initialStatus);
 
   // Status des Ziel-Bots regelmäßig überprüfen (z.B. alle 30 Sekunden)
-  setInterval(async () => {
-    const currentStatus = await getTargetBotStatus();
-    await updateGitHubStatus(currentStatus);
+  setInterval(() => {
+    const currentStatus = getTargetBotStatus();
+    updateGitHubStatus(currentStatus);
   }, 30000); // alle 30 Sekunden
 });
 
@@ -118,18 +113,4 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection:', reason);
-});
-
-// Express-Server für Uptime-Monitoring
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Uptime-Monitoring-Endpunkt
-app.get('/', (req, res) => {
-  res.status(200).send('Wächter-Bot läuft und überwacht!');
-});
-
-// Webserver starten
-app.listen(PORT, () => {
-  console.log(`Webserver läuft auf Port ${PORT}`);
 });
