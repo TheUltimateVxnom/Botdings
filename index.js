@@ -39,7 +39,7 @@ app.get('/', (req, res) => {
     <body>
         <h1>Website Status: ${websiteStatus}</h1>
         <form method="POST" action="/toggle">
-            <button type="submit">${manualOverride ? 'Automatik aktivieren' : 'Manuell Offline schalten'}</button>
+            <button type="submit">${manualOverride ? 'Automatik aktivieren' : 'Manuell down schalten'}</button>
         </form>
         <p>${manualOverride ? 'Manueller Modus ist aktiv!' : 'Automatischer Modus ist aktiv.'}</p>
     </body>
