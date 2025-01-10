@@ -1,6 +1,7 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
 const express = require('express');
+const bodyParser = require('body-parser');
 
 // Discord-Bot-Token und Ziel-Bot-ID aus Umgebungsvariablen
 const discordToken = process.env.DISCORD_TOKEN; // Wächter-Bot Token
@@ -19,15 +20,43 @@ const client = new Client({
 
 // Website mit Express starten
 const app = express();
-let websiteStatus = 'online'; // Standardmäßig online
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// Website-Route
+let websiteStatus = 'online'; // Standardmäßig online
+let manualOverride = false; // Manuelle Steuerung des Website-Status
+
+// Website-Route (mit Button zum Umschalten)
 app.get('/', (req, res) => {
-  if (websiteStatus === 'offline') {
-    res.send('Website ist derzeit offline wegen Wartung.');
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Website Status</title>
+    </head>
+    <body>
+        <h1>Website Status: ${websiteStatus}</h1>
+        <form method="POST" action="/toggle">
+            <button type="submit">${manualOverride ? 'Automatik aktivieren' : 'Manuell Offline schalten'}</button>
+        </form>
+        <p>${manualOverride ? 'Manueller Modus ist aktiv!' : 'Automatischer Modus ist aktiv.'}</p>
+    </body>
+    </html>
+  `);
+});
+
+// Route für das Umschalten des Status
+app.post('/toggle', (req, res) => {
+  manualOverride = !manualOverride; // Schaltet den manuellen Modus ein/aus
+  if (manualOverride) {
+    websiteStatus = 'offline'; // Setzt die Website manuell auf offline
   } else {
-    res.send('Willkommen auf der Website!');
+    const botStatus = getTargetBotStatus(); // Rückkehr in den automatischen Modus
+    updateWebsiteStatus(botStatus);
   }
+  res.redirect('/'); // Nach dem Umschalten zurück zur Hauptseite
 });
 
 // Starten des Express-Servers
@@ -37,7 +66,6 @@ app.listen(3000, () => {
 
 // Letzter bekannter Status
 let previousStatus = null;
-let previousWebsiteStatus = null;
 
 // Funktion, um den Status des Ziel-Bots zu überprüfen
 function getTargetBotStatus() {
@@ -61,6 +89,11 @@ function getTargetBotStatus() {
 // Funktion, um die Website je nach Bot-Status zu steuern
 async function updateWebsiteStatus(status) {
   try {
+    if (manualOverride) {
+      console.log('Manueller Modus ist aktiv. Keine Änderungen am Status.');
+      return; // Wenn manuelle Steuerung aktiv ist, passiert nichts
+    }
+
     if (status === 'up' && websiteStatus !== 'online') {
       console.log('Bot ist online! Website wird wieder verfügbar.');
       websiteStatus = 'online'; // Setzt Website wieder auf "online"
@@ -70,40 +103,6 @@ async function updateWebsiteStatus(status) {
     }
   } catch (error) {
     console.error('Fehler beim Aktualisieren des Website-Status:', error.message);
-  }
-}
-
-// Funktion, um den Status auf GitHub zu aktualisieren
-async function updateGitHubStatus(status) {
-  try {
-    if (status === previousStatus) {
-      console.log('Status unverändert. Kein Update nötig.');
-      return;
-    }
-
-    console.log(`Status hat sich geändert: ${previousStatus} -> ${status}`);
-    previousStatus = status;
-
-    const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
-    const response = await axios.get(url, {
-      headers: { Authorization: `Bearer ${githubToken}` },
-    });
-    const sha = response.data.sha;
-
-    const data = JSON.stringify({ status });
-    await axios.put(
-      url,
-      {
-        message: `Update bot status to ${status}`,
-        content: Buffer.from(data).toString('base64'),
-        sha,
-      },
-      { headers: { Authorization: `Bearer ${githubToken}` } }
-    );
-
-    console.log('Bot-Status erfolgreich auf GitHub aktualisiert!');
-  } catch (error) {
-    console.error('Fehler beim Aktualisieren des GitHub-Status:', error.message);
   }
 }
 
@@ -119,7 +118,6 @@ client.once('ready', () => {
   setInterval(() => {
     const currentStatus = getTargetBotStatus();
     updateWebsiteStatus(currentStatus);
-    updateGitHubStatus(currentStatus);
   }, 30000); // alle 30 Sekunden
 });
 
