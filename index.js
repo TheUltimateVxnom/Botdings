@@ -1,17 +1,10 @@
 const { Client, GatewayIntentBits } = require('discord.js');
-const axios = require('axios');
 const express = require('express');
 const bodyParser = require('body-parser');
 
 // Discord-Bot-Token und Ziel-Bot-ID aus Umgebungsvariablen
 const discordToken = process.env.DISCORD_TOKEN; // Wächter-Bot Token
 const targetBotId = process.env.TARGET_BOT_ID; // Ziel-Bot-ID aus Umgebungsvariablen
-
-// GitHub API Details
-const repoOwner = 'TheUltimateVxnom';
-const repoName = 'Botdings';
-const filePath = 'botStatus.json';
-const githubToken = process.env.GITHUB_TOKEN; // GitHub Token aus Umgebungsvariablen
 
 // Wächter-Bot initialisieren
 const client = new Client({
@@ -28,23 +21,46 @@ let manualOverride = false; // Manuelle Steuerung des Website-Status
 
 // Website-Route (mit Button zum Umschalten)
 app.get('/', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Website Status</title>
-    </head>
-    <body>
-        <h1>Website Status: ${websiteStatus}</h1>
-        <form method="POST" action="/toggle">
-            <button type="submit">${manualOverride ? 'Automatik aktivieren' : 'Manuell down schalten'}</button>
-        </form>
-        <p>${manualOverride ? 'Manueller Modus ist aktiv!' : 'Automatischer Modus ist aktiv.'}</p>
-    </body>
-    </html>
-  `);
+  const statusIcon =
+    websiteStatus === 'online'
+      ? '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Check_mark_icon.svg/1024px-Check_mark_icon.svg.png" alt="Online" width="50">'
+      : '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/X_mark.svg/1024px-X_mark.svg.png" alt="Offline" width="50">';
+
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Status</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            color: ${websiteStatus === 'online' ? 'green' : 'red'};
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        img {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Website Status: ${websiteStatus.toUpperCase()}</h1>
+    ${statusIcon}
+    <form method="POST" action="/toggle">
+        <button type="submit">${manualOverride ? 'Automatik aktivieren' : 'Manuell offline schalten'}</button>
+    </form>
+    <p>${manualOverride ? 'Manueller Modus ist aktiv!' : 'Automatischer Modus ist aktiv.'}</p>
+</body>
+</html>`);
 });
 
 // Route für das Umschalten des Status
