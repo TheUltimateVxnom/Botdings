@@ -28,6 +28,10 @@ let manualOverride = false; // Manuelle Steuerung des Website-Status
 
 // Website-Route (mit Button zum Umschalten)
 app.get('/', (req, res) => {
+  const favicon = websiteStatus === 'online'
+    ? 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="green"><path d="M9 16.2l-4.2-4.2L3 14.8l6 6 12-12-1.8-1.8L9 16.2z"/></svg>'
+    : 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="red"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>';
+
   res.send(`
     <!DOCTYPE html>
     <html lang="en">
@@ -35,6 +39,7 @@ app.get('/', (req, res) => {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Website Status</title>
+        <link rel="icon" type="image/svg+xml" href="${favicon}">
     </head>
     <body>
         <h1>Website Status: ${websiteStatus}</h1>
